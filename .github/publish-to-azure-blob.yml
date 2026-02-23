@@ -1,0 +1,37 @@
+name: Publish Source to Azure Blob Storage
+
+# Triggers on every push to master, and can be run manually from the Actions tab.
+on:
+  push:
+    branches: [ dev ]
+  workflow_dispatch:
+
+# To set up the required secret, go to:
+#   Repository → Settings → Secrets and variables → Actions → New repository secret
+# Name:  AZURE_STORAGE_SAS_TOKEN
+# Value: sp=racwl&st=...&sig=...   (the query-string portion of the SAS URL, without the leading '?')
+
+jobs:
+  publish-to-azure-blob:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Verify secret is configured
+        run: |
+          if [ -z "${{ secrets.AZURE_STORAGE_SAS_TOKEN }}" ]; then
+            echo "::error::Secret AZURE_STORAGE_SAS_TOKEN is not set. See workflow comments for setup instructions."
+            exit 1
+          fi
+
+      - name: Upload source to Azure Blob Storage
+        run: |
+          azcopy copy "." \
+            "https://ftbasestg.blob.core.windows.net/securiport/code?${{ secrets.AZURE_STORAGE_SAS_TOKEN }}" \
+            --recursive \
+            --exclude-path ".git" \
+            --overwrite true
